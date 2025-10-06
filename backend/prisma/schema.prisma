@@ -1,0 +1,24 @@
+
+generator client{
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite" 
+  url      = "file:./dev.db"
+}
+
+
+model Note {
+  id        Int      @id @default(autoincrement()) 
+  text      String   
+  createdAt DateTime @default(now())              
+  telegramChatId String 
+  userId    String   
+}
+
+model User{
+  firebaseUid String @id
+  telegramChatId String @unique
+
+}
