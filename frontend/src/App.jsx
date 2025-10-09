@@ -36,8 +36,8 @@ function App() {
     try {
       const token = await user.getIdToken();
       
-      // !!! ВОТ ЗДЕСЬ НУЖЕН ПРАВИЛЬНЫЙ URL БЭКЕНДА (порт 3001) !!!
-      const backendUrl = 'https://strobilaceous-implicatively-raelene.ngrok-free.dev';
+      // Using Render backend URL
+      const backendUrl = 'https://living-diary-bot.onrender.com';
 
       await axios.post(`${backendUrl}/api/link-account`, 
         { chatId: chatId },

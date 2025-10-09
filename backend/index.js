@@ -99,6 +99,12 @@ bot.on('callback_query', async (callbackQuery) => {
 const app = express();
 app.use(express.json());
 
+// CORS configuration
+app.use(cors({
+  origin: ['https://living-diary-bot.vercel.app', 'http://localhost:5173'],
+  credentials: true
+}));
+
 const checkAuth = async (req, res, next) => {
   if (!req.headers.authorization || !req.headers.authorization.startsWith('Bearer ')) {
     return res.status(401).send('Не авторизован: Токен не предоставлен.');
