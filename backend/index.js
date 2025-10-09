@@ -68,7 +68,7 @@ bot.on('message', async (msg) => {
       const notes = await prisma.note.findMany({ where: { userId: userId }, orderBy: { createdAt: 'desc' }, take: 5 });
       if (notes.length === 0) return bot.sendMessage(chatId, "Вам пока нечего удалять.");
       const keyboard = notes.map(note => ([{ text: `❌ ${note.text.substring(0, 30)}...`, callback_data: `delete_${note.id}` }]));
-      bot.sendMessage(chatId, 'Какую заметку вы хотите удалить?', { reply_markup: { inline_keyboard: keyboard } });
+      bot.sendMessage(chatId, 'Какую заметку вы хотите удалить?', { reply_markuSsp: { inline_keyboard: keyboard } });
 
     } else { 
       try {
