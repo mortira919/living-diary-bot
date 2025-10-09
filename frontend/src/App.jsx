@@ -8,6 +8,7 @@ function App() {
   const [chatId, setChatId] = useState(null);
   const [status, setStatus] = useState('Ожидание входа...');
 
+  // При загрузке страницы, получаем chatId из URL
   useEffect(() => {
     const urlParams = new URLSearchParams(window.location.search);
     const id = urlParams.get('chatId');
@@ -18,6 +19,7 @@ function App() {
       setStatus('Ошибка: chatId не найден. Пожалуйста, вернитесь в Telegram и попробуйте снова.');
     }
 
+    // Следим за состоянием авторизации
     const unsubscribe = auth.onAuthStateChanged(user => {
       if (user) {
         setUser(user);
@@ -34,7 +36,8 @@ function App() {
     try {
       const token = await user.getIdToken();
       
-      const backendUrl = 'https://4a7212629827.ngrok-free.app';
+      // !!! ВОТ ЗДЕСЬ НУЖЕН ПРАВИЛЬНЫЙ URL БЭКЕНДА (порт 3001) !!!
+      const backendUrl = 'https://strobilaceous-implicatively-raelene.ngrok-free.dev';
 
       await axios.post(`${backendUrl}/api/link-account`, 
         { chatId: chatId },
@@ -44,16 +47,17 @@ function App() {
       setStatus('Успешно! Теперь вы можете закрыть это окно и вернуться в Telegram.');
     } catch (error) {
       console.error(error);
-      setStatus(`Ошибка: ${error.message}`);
+      const errorMessage = error.response ? JSON.stringify(error.response.data) : error.message;
+      setStatus(`Ошибка: ${errorMessage}`);
     }
   };
 
   if (user) {
     return (
       <div className="App">
-        <h1>Аккаунт связан</h1>
+        <h1>Аккаунт определен</h1>
         <p>Привет, {user.displayName}!</p>
-        <button onClick={handleLinkAccount}>Завершить привязку</button>
+        <button onClick={handleLinkAccount}>Завершить привязку к Telegram</button>
         <p>{status}</p>
       </div>
     );
@@ -61,7 +65,7 @@ function App() {
 
   return (
     <div className="App">
-      <h1>Привязка аккаунта</h1>
+      <h1>Привязка Telegram-аккаунта</h1>
       <p>{status}</p>
       <button onClick={signInWithGoogle} disabled={!chatId}>
         Войти через Google
