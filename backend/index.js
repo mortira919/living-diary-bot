@@ -35,7 +35,7 @@ bot.on('message', async (msg) => {
     if (user) {
       bot.sendMessage(chatId, "✅ Ваш аккаунт уже связан!");
     } else {
-      const frontendUrl = 'https://strobilaceous-implicatively-raelene.ngrok-free.dev';       
+      const frontendUrl = 'https://living-diary-bot.vercel.app';
       const linkText = "Пожалуйста, войдите в свой аккаунт, чтобы я мог работать с вашим дневником.";
       const options = {
         reply_markup: {
