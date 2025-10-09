@@ -97,7 +97,6 @@ bot.on('callback_query', async (callbackQuery) => {
 });
 
 const app = express();
-app.use(cors());
 app.use(express.json());
 
 const checkAuth = async (req, res, next) => {
