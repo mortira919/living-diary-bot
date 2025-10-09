@@ -5,6 +5,7 @@ const cors = require('cors');
 const TelegramBot = require('node-telegram-bot-api');
 const { PrismaClient } = require('@prisma/client');
 const admin = require('firebase-admin');
+const axios = require('axios');
 
 const serviceAccount = require('./firebase-service-account.json');
 admin.initializeApp({
@@ -46,15 +47,16 @@ bot.on('message', async (msg) => {
       };
       bot.sendMessage(chatId, linkText, options);
     }
-
   } else {
-    
-    const user = await prisma.user.findUnique({ where: { telegramChatId: String(chatId) } });
+    const user = await prisma.user.findUnique({
+      where: { telegramChatId: String(chatId) }
+    });
+
     if (!user) {
       return bot.sendMessage(chatId, "Сначала нужно связать аккаунт. Пожалуйста, используйте команду /connect.");
     }
 
-    const userId = user.firebaseUid; 
+    const userId = user.firebaseUid;
 
     if (text === '/notes') {
       const notes = await prisma.note.findMany({ where: { userId: userId }, orderBy: { createdAt: 'desc' }, take: 5 });
@@ -63,10 +65,10 @@ bot.on('message', async (msg) => {
       bot.sendMessage(chatId, `Ваши последние заметки:\n${responseText}`);
 
     } else if (text === '/delete') {
-        const notes = await prisma.note.findMany({ where: { userId: userId }, orderBy: { createdAt: 'desc' }, take: 5 });
-        if (notes.length === 0) return bot.sendMessage(chatId, "Вам пока нечего удалять.");
-        const keyboard = notes.map(note => ([{ text: `❌ ${note.text.substring(0, 30)}...`, callback_data: `delete_${note.id}` }]));
-        bot.sendMessage(chatId, 'Какую заметку вы хотите удалить?', { reply_markup: { inline_keyboard: keyboard } });
+      const notes = await prisma.note.findMany({ where: { userId: userId }, orderBy: { createdAt: 'desc' }, take: 5 });
+      if (notes.length === 0) return bot.sendMessage(chatId, "Вам пока нечего удалять.");
+      const keyboard = notes.map(note => ([{ text: `❌ ${note.text.substring(0, 30)}...`, callback_data: `delete_${note.id}` }]));
+      bot.sendMessage(chatId, 'Какую заметку вы хотите удалить?', { reply_markup: { inline_keyboard: keyboard } });
 
     } else { 
       try {
@@ -113,7 +115,6 @@ const checkAuth = async (req, res, next) => {
     return res.status(403).send('Не авторизован: Неверный токен.');
   }
 };
-
 
 app.get('/api/notes', checkAuth, async (req, res) => {
   try {
@@ -170,6 +171,6 @@ app.post('/api/link-account', checkAuth, async (req, res) => {
   }
 });
 
-app.listen(port, () => {
-  console.log(`Сервер запущен на порту ${port}`);
+app.listen(process.env.PORT || 3001, () => {
+  console.log(`Сервер запущен на порту ${process.env.PORT || 3001}`);
 });
