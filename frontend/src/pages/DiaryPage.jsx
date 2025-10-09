@@ -14,10 +14,8 @@ function DiaryPage() {
         if (!user) {
           throw new Error("Пользователь не авторизован");
         }
-        
         const token = await user.getIdToken();
         const backendUrl = 'https://living-diary-bot.onrender.com'; 
-
         const response = await axios.get(`${backendUrl}/api/notes`, {
           headers: { 'Authorization': `Bearer ${token}` }
         });

@@ -19,7 +19,6 @@ function App() {
       setStatus('Ошибка: chatId не найден. Пожалуйста, вернитесь в Telegram и попробуйте снова.');
     }
 
-    // Следим за состоянием авторизации
     const unsubscribe = auth.onAuthStateChanged(user => {
       if (user) {
         setUser(user);
@@ -35,11 +34,7 @@ function App() {
     setStatus('Связываем аккаунты...');
     try {
       const token = await user.getIdToken();
-      
-      // Using Render backend URL
-      const backendUrl = 'https://living-diary-bot.onrender.com';
-
-      await axios.post(`${backendUrl}/api/link-account`, 
+      await axios.post(`${import.meta.env.VITE_BACKEND_URL}/api/link-account`, 
         { chatId: chatId },
         { headers: { 'Authorization': `Bearer ${token}` } }
       );

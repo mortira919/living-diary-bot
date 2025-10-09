@@ -5,7 +5,7 @@ generator client{
 
 datasource db {
   provider = "postgresql"
-  url      = env("DATABASE_URL") 
+  url      = "postgresql://living_diary_db_user:36RoaFwlaV4TRhScHuoY7Fig603kIJPM@dpg-d3jifemr433s739bb61g-a.oregon-postgres.render.com/living_diary_db"
 }
 
 
