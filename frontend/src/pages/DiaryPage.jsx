@@ -16,7 +16,7 @@ function DiaryPage() {
         }
         
         const token = await user.getIdToken();
-        const backendUrl = 'https://.ngrok-free.app'; 
+        const backendUrl = 'https://living-diary-bot.onrender.com'; 
 
         const response = await axios.get(`${backendUrl}/api/notes`, {
           headers: { 'Authorization': `Bearer ${token}` }
