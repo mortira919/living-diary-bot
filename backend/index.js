@@ -58,17 +58,36 @@ bot.on('message', async (msg) => {
 
     const userId = user.firebaseUid;
 
-    if (text === '/notes') {
-      const notes = await prisma.note.findMany({ where: { userId: userId }, orderBy: { createdAt: 'desc' }, take: 5 });
-      if (notes.length === 0) return bot.sendMessage(chatId, "У вас пока нет ни одной заметки.");
-      const responseText = notes.map((note, index) => `${index + 1}. ${note.text}`).join('\n');
-      bot.sendMessage(chatId, `Ваши последние заметки:\n${responseText}`);
+    if (text === '/notes')  {
+  try {
+    const response = await axios.get(
+      `${process.env.FASTAPI_BASE_URL}/api/notes`,
+      {
+        headers: {
+          'X-Internal-Secret': process.env.INTERNAL_SECRET_KEY
+        },
+        params: {
+          userId: userId 
+        }
+      }
+    );
+    const notes = response.data;
 
-    } else if (text === '/delete') {
-      const notes = await prisma.note.findMany({ where: { userId: userId }, orderBy: { createdAt: 'desc' }, take: 5 });
-      if (notes.length === 0) return bot.sendMessage(chatId, "Вам пока нечего удалять.");
-      const keyboard = notes.map(note => ([{ text: `❌ ${note.text.substring(0, 30)}...`, callback_data: `delete_${note.id}` }]));
-      bot.sendMessage(chatId, 'Какую заметку вы хотите удалить?', { reply_markuSsp: { inline_keyboard: keyboard } });
+    if (!notes || notes.length === 0) {
+      return bot.sendMessage(chatId, "У вас пока нет ни одной заметки в основном дневнике.");
+    }
+    const responseText = notes.map((note, index) => `${index + 1}. ${note.text}`).join('\n');
+    bot.sendMessage(chatId, `Ваши последние заметки:\n${responseText}`);
+
+  } catch (error) {
+    console.error('Ошибка при запросе к FastAPI для /notes:', error.response ? error.response.data : error.message);
+    bot.sendMessage(chatId, '❌ Не удалось получить доступ к вашему дневнику. Попробуйте позже.');
+  }
+} else if (text === '/delete') {
+  const notes = await prisma.note.findMany({ where: { userId: userId }, orderBy: { createdAt: 'desc' }, take: 5 });
+  if (notes.length === 0) return bot.sendMessage(chatId, "Вам пока нечего удалять.");
+  const keyboard = notes.map(note => ([{ text: `❌ ${note.text.substring(0, 30)}...`, callback_data: `delete_${note.id}` }]));
+  bot.sendMessage(chatId, 'Какую заметку вы хотите удалить?', { reply_markup: { inline_keyboard: keyboard } });
 
     } else { 
       try {
