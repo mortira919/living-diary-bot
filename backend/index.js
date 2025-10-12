@@ -92,13 +92,14 @@ async function handleSaveNote(chatId, text) {
   const content = text;
 
   try {
-    const url = `${fastApiBaseUrl}/notes/bot/?userId=${firebaseUid}`;
+    const url = `${fastApiBaseUrl}/notes/bot/`;
 
     await axios.post(
       url,
       {
         title: title,
-        content: content
+        content: content,
+        userId: firebaseUid
       },
       {
         headers: {
