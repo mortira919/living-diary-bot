@@ -90,7 +90,7 @@ async function handleSaveNote(chatId, text) {
 
   try {
     await axios.post(
-      `${fastApiBaseUrl}/notes`,
+      `${fastApiBaseUrl}/notes/bot/`, // <--- ИЗМЕНЕНО
       {
         text: text,
         userId: firebaseUid
@@ -114,7 +114,7 @@ async function handleGetNotes(chatId) {
 
   try {
     const response = await axios.get(
-      `${fastApiBaseUrl}/notes`,
+      `${fastApiBaseUrl}/notes/bot/`, // <--- ИЗМЕНЕНО
       {
         params: { userId: firebaseUid },
         headers: { 'X-Internal-Secret': internalSecretKey }
@@ -139,7 +139,7 @@ async function handleDeleteNote(chatId) {
     if (!firebaseUid) return;
 
     try {
-        const response = await axios.get(`${fastApiBaseUrl}/notes`, {
+        const response = await axios.get(`${fastApiBaseUrl}/notes/bot/`, { // <--- ИЗМЕНЕНО
             params: { userId: firebaseUid, limit: 5 },
             headers: { 'X-Internal-Secret': internalSecretKey }
         });
@@ -174,7 +174,7 @@ bot.on('callback_query', async (callbackQuery) => {
     
     try {
       await axios.delete(
-        `${fastApiBaseUrl}/notes/${noteIdToDelete}`,
+        `${fastApiBaseUrl}/notes/bot/${noteIdToDelete}`, // <--- ИЗМЕНЕНО
         {
           headers: { 'X-Internal-Secret': internalSecretKey },
           params: { userId: firebaseUid }
