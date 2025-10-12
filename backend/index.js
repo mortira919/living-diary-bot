@@ -88,12 +88,17 @@ async function handleSaveNote(chatId, text) {
   const firebaseUid = await getFirebaseUid(chatId);
   if (!firebaseUid) return;
 
+  const title = text.length > 30 ? text.substring(0, 30) + '...' : text;
+  const content = text;
+
   try {
+    const url = `${fastApiBaseUrl}/notes/bot/?userId=${firebaseUid}`;
+
     await axios.post(
-      `${fastApiBaseUrl}/notes/bot/`, // <--- ИЗМЕНЕНО
+      url,
       {
-        text: text,
-        userId: firebaseUid
+        title: title,
+        content: content
       },
       {
         headers: {
@@ -114,7 +119,7 @@ async function handleGetNotes(chatId) {
 
   try {
     const response = await axios.get(
-      `${fastApiBaseUrl}/notes/bot/`, // <--- ИЗМЕНЕНО
+      `${fastApiBaseUrl}/notes/bot/`,
       {
         params: { userId: firebaseUid },
         headers: { 'X-Internal-Secret': internalSecretKey }
@@ -125,7 +130,7 @@ async function handleGetNotes(chatId) {
     if (!notes || notes.length === 0) {
       return bot.sendMessage(chatId, "У вас пока нет ни одной заметки в дневнике.");
     }
-    const responseText = notes.map((note, index) => `${index + 1}. ${note.text}`).join('\n');
+    const responseText = notes.map((note, index) => `${index + 1}. ${note.title} - ${note.content}`).join('\n');
     bot.sendMessage(chatId, `Ваши последние заметки:\n${responseText}`);
 
   } catch (error) {
@@ -139,7 +144,7 @@ async function handleDeleteNote(chatId) {
     if (!firebaseUid) return;
 
     try {
-        const response = await axios.get(`${fastApiBaseUrl}/notes/bot/`, { // <--- ИЗМЕНЕНО
+        const response = await axios.get(`${fastApiBaseUrl}/notes/bot/`, {
             params: { userId: firebaseUid, limit: 5 },
             headers: { 'X-Internal-Secret': internalSecretKey }
         });
@@ -149,7 +154,7 @@ async function handleDeleteNote(chatId) {
             return bot.sendMessage(chatId, "Вам пока нечего удалять.");
         }
         const keyboard = notes.map(note => ([
-            { text: `❌ ${note.text.substring(0, 30)}...`, callback_data: `delete_${note.id}` }
+            { text: `❌ ${note.title.substring(0, 30)}...`, callback_data: `delete_${note.id}` }
         ]));
 
         bot.sendMessage(chatId, 'Какую заметку вы хотите удалить?', {
@@ -174,7 +179,7 @@ bot.on('callback_query', async (callbackQuery) => {
     
     try {
       await axios.delete(
-        `${fastApiBaseUrl}/notes/bot/${noteIdToDelete}`, // <--- ИЗМЕНЕНО
+        `${fastApiBaseUrl}/notes/bot/${noteIdToDelete}`,
         {
           headers: { 'X-Internal-Secret': internalSecretKey },
           params: { userId: firebaseUid }
