@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import axios from 'axios';
-import { auth, signInWithGoogle } from './firebase'; // Импортируем нашу настройку
+import { auth, signInWithGoogle } from './firebase'; 
 import './App.css';
 
 function App() {
@@ -8,7 +8,7 @@ function App() {
   const [chatId, setChatId] = useState(null);
   const [status, setStatus] = useState('Ожидание входа...');
 
-  // При загрузке страницы, получаем chatId из URL
+  
   useEffect(() => {
     const urlParams = new URLSearchParams(window.location.search);
     const id = urlParams.get('chatId');

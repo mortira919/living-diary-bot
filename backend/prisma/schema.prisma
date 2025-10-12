@@ -9,15 +9,8 @@ datasource db {
 }
 
 
-model Note {
-  id        Int      @id @default(autoincrement()) 
-  text      String   
-  createdAt DateTime @default(now())              
-  userId    String   
-}
-
 model User{
   firebaseUid String @id
   telegramChatId String @unique
-
+  timezone String @default("UTC")
 }
