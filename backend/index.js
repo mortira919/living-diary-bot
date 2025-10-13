@@ -16,11 +16,34 @@ const token = process.env.TELEGRAM_BOT_TOKEN;
 const port = process.env.PORT || 3001;
 const fastApiBaseUrl = process.env.FASTAPI_BASE_URL;
 const internalSecretKey = process.env.INTERNAL_SECRET_KEY;
+const miniAppUrl = process.env.MINI_APP_URL;
 
 const prisma = new PrismaClient();
 const bot = new TelegramBot(token, { polling: true });
 
+async function setupBotCommands() {
+  await bot.setMyCommands([
+    { command: '/start', description: 'Начать работу с ботом' },
+    { command: '/connect', description: 'Привязать аккаунт' },
+    { command: '/notes', description: 'Открыть дневник (через меню)' },
+  ]);
+
+  if (miniAppUrl) {
+    await bot.setChatMenuButton({
+      menuButton: {
+        type: 'web_app',
+        text: 'Дневник',
+        web_app: { url: miniAppUrl }
+      }
+    });
+    console.log("Кнопка меню для Mini App успешно установлена.");
+  } else {
+    console.warn("Внимание: MINI_APP_URL не установлена. Кнопка меню не будет настроена.");
+  }
+}
+
 console.log("Бот запущен");
+setupBotCommands();
 
 bot.on('message', async (msg) => {
   if (!msg.text) return;
@@ -30,16 +53,16 @@ bot.on('message', async (msg) => {
 
   if (text.startsWith('/')) {
     const command = text.split(' ')[0];
+    const user = await prisma.user.findUnique({ where: { telegramChatId: String(chatId) } });
 
     switch (command) {
       case '/start':
-        const welcomeText = "Добро пожаловать! Используйте /connect для привязки аккаунта, /notes для просмотра, /delete для удаления. Любое другое сообщение будет сохранено как заметка.";
+        const welcomeText = "Добро пожаловать! Привяжите аккаунт командой /connect, а затем откройте дневник через кнопку 'Меню' внизу.";
         bot.sendMessage(chatId, welcomeText);
         break;
 
       case '/connect':
-        const userExists = await prisma.user.findUnique({ where: { telegramChatId: String(chatId) } });
-        if (userExists) {
+        if (user) {
           bot.sendMessage(chatId, "✅ Ваш аккаунт уже связан!");
         } else {
           const frontendUrl = process.env.FRONTEND_LINKING_URL || 'https://living-diary-bot.vercel.app';
@@ -56,15 +79,16 @@ bot.on('message', async (msg) => {
         break;
       
       case '/notes':
-        handleGetNotes(chatId);
-        break;
-
       case '/delete':
-        handleDeleteNote(chatId);
+        if (user) {
+          bot.sendMessage(chatId, "Для просмотра и управления заметками, пожалуйста, откройте дневник через кнопку 'Меню' внизу 👇");
+        } else {
+          bot.sendMessage(chatId, "Сначала нужно связать аккаунт. Пожалуйста, используйте команду /connect.");
+        }
         break;
         
       default:
-        bot.sendMessage(chatId, "Неизвестная команда. Используйте /help для списка команд.");
+        bot.sendMessage(chatId, "Неизвестная команда.");
         break;
     }
   } else {
@@ -93,7 +117,6 @@ async function handleSaveNote(chatId, text) {
 
   try {
     const url = `${fastApiBaseUrl}/notes/bot/`;
-
     await axios.post(
       url,
       {
@@ -114,30 +137,21 @@ async function handleSaveNote(chatId, text) {
   }
 }
 
+// Функции handleGetNotes и handleDeleteNote больше не используются напрямую, 
+// так как вся логика теперь в Mini App, но мы их оставляем как примеры корректных запросов.
 async function handleGetNotes(chatId) {
-  const firebaseUid = await getFirebaseUid(chatId);
-  if (!firebaseUid) return;
+    const firebaseUid = await getFirebaseUid(chatId);
+    if (!firebaseUid) return;
 
-  try {
-    const response = await axios.get(
-      `${fastApiBaseUrl}/notes/bot/`,
-      {
-        params: { userId: firebaseUid },
-        headers: { 'X-Internal-Secret': internalSecretKey }
-      }
-    );
-    const notes = response.data;
-
-    if (!notes || notes.length === 0) {
-      return bot.sendMessage(chatId, "У вас пока нет ни одной заметки в дневнике.");
+    try {
+        const response = await axios.get(`${fastApiBaseUrl}/notes/bot/`, {
+            params: { userId: firebaseUid },
+            headers: { 'X-Internal-Secret': internalSecretKey }
+        });
+        const notes = response.data;
+    } catch (error) {
+        console.error('Ошибка при запросе к FastAPI для /notes:', error.response ? error.response.data : error.message);
     }
-    const responseText = notes.map((note, index) => `${index + 1}. ${note.title} - ${note.content}`).join('\n');
-    bot.sendMessage(chatId, `Ваши последние заметки:\n${responseText}`);
-
-  } catch (error) {
-    console.error('Ошибка при запросе к FastAPI для /notes:', error.response ? error.response.data : error.message);
-    bot.sendMessage(chatId, '❌ Не удалось получить доступ к вашему дневнику. Попробуйте позже.');
-  }
 }
 
 async function handleDeleteNote(chatId) {
@@ -149,56 +163,10 @@ async function handleDeleteNote(chatId) {
             params: { userId: firebaseUid, limit: 5 },
             headers: { 'X-Internal-Secret': internalSecretKey }
         });
-        const notes = response.data;
-
-        if (notes.length === 0) {
-            return bot.sendMessage(chatId, "Вам пока нечего удалять.");
-        }
-        const keyboard = notes.map(note => ([
-            { text: `❌ ${note.title.substring(0, 30)}...`, callback_data: `delete_${note.id}` }
-        ]));
-
-        bot.sendMessage(chatId, 'Какую заметку вы хотите удалить?', {
-            reply_markup: { inline_keyboard: keyboard }
-        });
     } catch (error) {
         console.error('Ошибка при получении заметок для удаления:', error.response ? error.response.data : error.message);
-        bot.sendMessage(chatId, '❌ Не удалось получить список заметок для удаления.');
     }
 }
-
-bot.on('callback_query', async (callbackQuery) => {
-  const msg = callbackQuery.message;
-  const data = callbackQuery.data;
-  const chatId = msg.chat.id;
-
-  if (data.startsWith('delete_')) {
-    const firebaseUid = await getFirebaseUid(chatId);
-    if (!firebaseUid) return;
-
-    const noteIdToDelete = data.split('_')[1];
-    
-    try {
-      await axios.delete(
-        `${fastApiBaseUrl}/notes/bot/${noteIdToDelete}`,
-        {
-          headers: { 'X-Internal-Secret': internalSecretKey },
-          params: { userId: firebaseUid }
-        }
-      );
-      
-      bot.answerCallbackQuery(callbackQuery.id, { text: 'Заметка удалена!' });
-      bot.editMessageText('Заметка успешно удалена.', {
-        chat_id: msg.chat.id,
-        message_id: msg.message_id,
-        reply_markup: { inline_keyboard: [] }
-      });
-    } catch (error) {
-      console.error("Ошибка при удалении заметки через FastAPI:", error.response ? error.response.data : error.message);
-      bot.answerCallbackQuery(callbackQuery.id, { text: 'Ошибка при удалении!' });
-    }
-  }
-});
 
 const app = express();
 app.use(cors());
@@ -231,7 +199,7 @@ app.post('/api/link-account', checkAuth, async (req, res) => {
       create: { firebaseUid: firebaseUid, telegramChatId: String(chatId) }
     });
 
-    bot.sendMessage(chatId, '🎉 Отлично! Ваш аккаунт успешно связан. Теперь вы можете сохранять заметки прямо здесь.');
+    bot.sendMessage(chatId, '🎉 Отлично! Ваш аккаунт успешно связан. Теперь вы можете открывать дневник через кнопку "Меню".');
     
     res.status(200).json({ message: 'Аккаунт успешно связан!' });
   } catch (error) {
