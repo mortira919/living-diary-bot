@@ -1,51 +1,100 @@
 import React, { useState, useEffect } from 'react';
-import axios from 'axios';
 import { auth } from '../firebase';
+import { getNotes, createNote, deleteNote } from '../api/diaryService';
+import { useTheme } from '../context/ThemeContext';
 
 function DiaryPage() {
   const [notes, setNotes] = useState([]);
+  const [newNoteText, setNewNoteText] = useState('');
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
+  const [timeZone, setTimeZone] = useState('UTC');
+  const { theme, toggleTheme } = useTheme();
 
   useEffect(() => {
-    const fetchNotes = async () => {
-      try {
-        const user = auth.currentUser;
-        if (!user) {
-          throw new Error("Пользователь не авторизован");
-        }
-        const token = await user.getIdToken();
-        const backendUrl = 'https://living-diary-bot.onrender.com'; 
-        const response = await axios.get(`${backendUrl}/api/notes`, {
-          headers: { 'Authorization': `Bearer ${token}` }
-        });
-        
-        setNotes(response.data);
-      } catch (err) {
-        setError(err.message);
-      } finally {
+    const unsubscribe = auth.onAuthStateChanged(user => {
+      if (user) {
+        setLoading(true);
+        getNotes()
+          .then(response => setNotes(response.data))
+          .catch(err => setError(err.message))
+          .finally(() => setLoading(false));
+      } else {
         setLoading(false);
       }
-    };
-
-    fetchNotes();
+    });
+    return () => unsubscribe();
   }, []);
 
-  if (loading) return <p>Загрузка заметок...</p>;
-  if (error) return <p>Ошибка: {error}</p>;
+  useEffect(() => {
+    setTimeZone(Intl.DateTimeFormat().resolvedOptions().timeZone);
+  }, []);
+
+  const handleCreateNote = async (e) => {
+    e.preventDefault();
+    if (!newNoteText.trim()) return;
+    try {
+      const response = await createNote(newNoteText);
+      setNotes([response.data, ...notes]);
+      setNewNoteText('');
+    } catch (err) {
+      setError("Ошибка создания заметки: " + err.message);
+    }
+  };
+
+  const handleDeleteNote = async (noteId) => {
+    if (!window.confirm("Вы уверены?")) return;
+    try {
+      await deleteNote(noteId);
+      setNotes(notes.filter(note => note.id !== noteId));
+    } catch (err) {
+      setError("Ошибка удаления заметки: " + err.message);
+    }
+  };
+
+  if (loading) return <p>Загрузка...</p>;
+  if (!auth.currentUser) return <p>Пожалуйста, <a href="/login">войдите</a>, чтобы увидеть ваш дневник.</p>;
 
   return (
     <div>
-      <h1>Ваш дневник</h1>
-      <button onClick={() => auth.signOut()}>Выйти</button>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+        <h1>Ваш дневник</h1>
+        <div>
+          <button onClick={toggleTheme} style={{ marginRight: '10px' }}>
+            {theme === 'light' ? '🌙' : '☀️'}
+          </button>
+          <button onClick={() => auth.signOut()}>Выйти</button>
+        </div>
+      </div>
+
+      <form onSubmit={handleCreateNote} style={{ margin: '20px 0' }}>
+        <textarea
+          value={newNoteText}
+          onChange={(e) => setNewNoteText(e.target.value)}
+          placeholder="Что нового?"
+          rows="4"
+          style={{ width: '100%', padding: '10px', boxSizing: 'border-box' }}
+        />
+        <button type="submit">Добавить заметку</button>
+      </form>
+
+      {error && <p style={{ color: 'red' }}>{error}</p>}
+
       <div>
         {notes.length === 0 ? (
           <p>У вас пока нет заметок.</p>
         ) : (
           notes.map(note => (
-            <div key={note.id} style={{ border: '1px solid #ccc', padding: '10px', margin: '10px' }}>
+            <div key={note.id} style={{ border: '1px solid #ccc', padding: '10px', margin: '10px 0', textAlign: 'left' }}>
               <p>{note.text}</p>
-              <small>{new Date(note.createdAt).toLocaleString()}</small>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                <small>
+                  {new Date(note.createdAt).toLocaleString('ru-RU', { timeZone })}
+                </small>
+                <button onClick={() => handleDeleteNote(note.id)} style={{ color: 'red', background: 'none', border: 'none', cursor: 'pointer' }}>
+                  Удалить
+                </button>
+              </div>
             </div>
           ))
         )}
