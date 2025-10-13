@@ -12,5 +12,4 @@ datasource db {
 model User{
   firebaseUid String @id
   telegramChatId String @unique
-  timezone String @default("UTC")
 }
