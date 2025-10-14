@@ -35,7 +35,8 @@ function DiaryPage() {
     if (!newNoteText.trim()) return;
     try {
       const response = await createNote(newNoteText);
-      setNotes([response.data, ...notes]);
+      // После создания заметки, запрашиваем обновленный список, чтобы все было синхронно
+      getNotes().then(response => setNotes(response.data));
       setNewNoteText('');
     } catch (err) {
       setError("Ошибка создания заметки: " + err.message);
@@ -44,11 +45,12 @@ function DiaryPage() {
 
   const handleDeleteNote = async (noteId) => {
     if (!window.confirm("Вы уверены?")) return;
+    setError(null); // Сбрасываем предыдущую ошибку
     try {
       await deleteNote(noteId);
       setNotes(notes.filter(note => note.id !== noteId));
     } catch (err) {
-      setError("Ошибка удаления заметки: " + err.message);
+      setError("Ошибка удаления заметки: " + (err.response ? err.response.data.detail : err.message));
     }
   };
 
@@ -86,10 +88,10 @@ function DiaryPage() {
         ) : (
           notes.map(note => (
             <div key={note.id} style={{ border: '1px solid #ccc', padding: '10px', margin: '10px 0', textAlign: 'left' }}>
-              <p>{note.text}</p>
+              <p>{note.content}</p>
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                 <small>
-                  {new Date(note.createdAt).toLocaleString('ru-RU', { timeZone })}
+                  {new Date(note.created_at).toLocaleString('ru-RU', { timeZone })}
                 </small>
                 <button onClick={() => handleDeleteNote(note.id)} style={{ color: 'red', background: 'none', border: 'none', cursor: 'pointer' }}>
                   Удалить
