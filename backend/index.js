@@ -22,23 +22,33 @@ const prisma = new PrismaClient();
 const bot = new TelegramBot(token, { polling: true });
 
 async function setupBotCommands() {
-  await bot.setMyCommands([
-    { command: '/start', description: 'Начать работу с ботом' },
-    { command: '/connect', description: 'Привязать аккаунт' },
-    { command: '/notes', description: 'Открыть дневник (через меню)' },
-  ]);
+  try {
+    console.log("--- ШАГ 1: Устанавливаю список команд ---");
+    await bot.setMyCommands([
+      { command: '/start', description: 'Начать работу с ботом' },
+      { command: '/connect', description: 'Привязать аккаунт' },
+      { command: '/notes', description: 'Открыть дневник (через меню)' },
+    ]);
+    console.log("--- УСПЕХ: Список команд установлен. ---");
 
-  if (miniAppUrl) {
-    await bot.setChatMenuButton({
-      menuButton: {
-        type: 'web_app',
-        text: 'Дневник',
-        web_app: { url: miniAppUrl }
-      }
-    });
-    console.log("Кнопка меню для Mini App успешно установлена.");
-  } else {
-    console.warn("Внимание: MINI_APP_URL не установлена. Кнопка меню не будет настроена.");
+    if (miniAppUrl) {
+      console.log(`--- ШАГ 2: Пытаюсь установить кнопку меню с URL: [${miniAppUrl}] ---`);
+      
+      await bot.setChatMenuButton({
+        menuButton: {
+          type: 'web_app',
+          text: 'Дневник',
+          web_app: { url: miniAppUrl }
+        }
+      });
+
+      console.log("--- УСПЕХ: Команда setChatMenuButton выполнена без сбоя. ---");
+    } else {
+      console.warn("--- ВНИМАНИЕ: MINI_APP_URL не установлена. Кнопка меню не будет настроена. ---");
+    }
+  } catch (error) {
+    console.error("--- КРИТИЧЕСКАЯ ОШИБКА при настройке бота: ---");
+    console.error(error);
   }
 }
 
@@ -102,7 +112,7 @@ async function getFirebaseUid(chatId) {
   });
 
   if (!user) {
-    bot.sendMessage(chatId, "Сначала нужно связать аккаунт. Пожалуйста, используйте команду /connect.");
+    bot.sendMessage(chatId, "Сначала нужно связать аккаукаунт. Пожалуйста, используйте команду /connect.");
     return null;
   }
   return user.firebaseUid;
@@ -156,9 +166,6 @@ const checkAuth = async (req, res, next) => {
   }
 };
 
-// --- API ЭНДПОИНТЫ ДЛЯ ФРОНТЕНДА ---
-
-// Получить все заметки
 app.get('/api/notes', checkAuth, async (req, res) => {
     try {
         const firebaseUid = req.user.uid;
@@ -173,7 +180,6 @@ app.get('/api/notes', checkAuth, async (req, res) => {
     }
 });
 
-// Создать новую заметку
 app.post('/api/notes', checkAuth, async (req, res) => {
     try {
         const firebaseUid = req.user.uid;
@@ -201,7 +207,6 @@ app.post('/api/notes', checkAuth, async (req, res) => {
     }
 });
 
-// Удалить заметку
 app.delete('/api/notes/:id', checkAuth, async (req, res) => {
     try {
         const firebaseUid = req.user.uid;
@@ -218,7 +223,6 @@ app.delete('/api/notes/:id', checkAuth, async (req, res) => {
     }
 });
 
-// Связать аккаунт
 app.post('/api/link-account', checkAuth, async (req, res) => {
   try {
     const firebaseUid = req.user.uid;
