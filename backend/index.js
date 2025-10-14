@@ -174,7 +174,7 @@ app.use(express.json());
 const checkAuth = async (req, res, next) => {
   const authHeader = req.headers.authorization;
   if (!authHeader || !authHeader.startsWith('Bearer ')) {
-    return res.status(401).send('Не авторизован: Токен не предоставлен.');
+    return res.status(401).send('Не авторизован: Токен не  предоставлен.');
   }
   const idToken = authHeader.split('Bearer ')[1];
   try {
