@@ -21,29 +21,13 @@ const miniAppUrl = process.env.MINI_APP_URL;
 const prisma = new PrismaClient();
 const bot = new TelegramBot(token, { polling: true });
 
-async function setupBotCommands() {
-  await bot.setMyCommands([
-    { command: '/start', description: 'Начать работу с ботом' },
-    { command: '/connect', description: 'Привязать аккаунт' },
-    { command: '/notes', description: 'Открыть дневник (через меню)' },
-  ]);
-
-  if (miniAppUrl) {
-    await bot.setChatMenuButton({
-      menuButton: {
-        type: 'web_app',
-        text: 'Дневник',
-        web_app: { url: miniAppUrl }
-      }
-    });
-    console.log("Кнопка меню для Mini App успешно установлена.");
-  } else {
-    console.warn("Внимание: MINI_APP_URL не установлена. Кнопка меню не будет настроена.");
-  }
-}
-
 console.log("Бот запущен");
-setupBotCommands();
+
+bot.setMyCommands([
+  { command: '/start', description: '🚀 Начать работу и открыть дневник' },
+  { command: '/connect', description: '🔗 Привязать аккаунт' },
+  { command: '/notes', description: '📖 Открыть дневник' },
+]);
 
 bot.on('message', async (msg) => {
   if (!msg.text) return;
@@ -51,14 +35,31 @@ bot.on('message', async (msg) => {
   const chatId = msg.chat.id;
   const text = msg.text;
 
+  const sendOpenAppButton = (chatId, messageText) => {
+    if (!miniAppUrl) {
+      return bot.sendMessage(chatId, "Ошибка: URL для Mini App не настроен.");
+    }
+    const options = {
+      reply_markup: {
+        inline_keyboard: [
+          [{ text: '📖 Открыть Дневник', web_app: { url: miniAppUrl } }]
+        ]
+      }
+    };
+    bot.sendMessage(chatId, messageText, options);
+  };
+
   if (text.startsWith('/')) {
     const command = text.split(' ')[0];
     const user = await prisma.user.findUnique({ where: { telegramChatId: String(chatId) } });
 
     switch (command) {
       case '/start':
-        const welcomeText = "Добро пожаловать! Привяжите аккаунт командой /connect, а затем откройте дневник через кнопку 'Меню' внизу.";
-        bot.sendMessage(chatId, welcomeText);
+        if (user) {
+          sendOpenAppButton(chatId, "Добро пожаловать обратно! Откройте ваш дневник, нажав на кнопку ниже.");
+        } else {
+          bot.sendMessage(chatId, "Добро пожаловать! Сначала нужно привязать ваш аккаунт. Используйте команду /connect.");
+        }
         break;
 
       case '/connect':
@@ -66,22 +67,21 @@ bot.on('message', async (msg) => {
           bot.sendMessage(chatId, "✅ Ваш аккаунт уже связан!");
         } else {
           const frontendUrl = process.env.FRONTEND_LINKING_URL || 'https://living-diary-bot.vercel.app';
-          const linkText = "Пожалуйста, войдите в свой аккаунт, чтобы я мог работать с вашим дневником.";
           const options = {
             reply_markup: {
               inline_keyboard: [
-                [{ text: '🔗 Войти и связать аккаунт', web_app: { url: `${frontendUrl}/?chatId=${chatId}` } }]
+                [{ text: '🔗 Привязать аккаунт', web_app: { url: `${frontendUrl}/?chatId=${chatId}` } }]
               ]
             }
           };
-          bot.sendMessage(chatId, linkText, options);
+          bot.sendMessage(chatId, "Пожалуйста, войдите в свой аккаунт, чтобы я мог работать с вашим дневником.", options);
         }
         break;
       
       case '/notes':
       case '/delete':
         if (user) {
-          bot.sendMessage(chatId, "Для просмотра и управления заметками, пожалуйста, откройте дневник через кнопку 'Меню' внизу 👇");
+          sendOpenAppButton(chatId, "Для просмотра и управления заметками, пожалуйста, откройте дневник, нажав на кнопку ниже.");
         } else {
           bot.sendMessage(chatId, "Сначала нужно связать аккаунт. Пожалуйста, используйте команду /connect.");
         }
@@ -100,7 +100,6 @@ async function getFirebaseUid(chatId) {
   const user = await prisma.user.findUnique({
     where: { telegramChatId: String(chatId) }
   });
-
   if (!user) {
     bot.sendMessage(chatId, "Сначала нужно связать аккаунт. Пожалуйста, используйте команду /connect.");
     return null;
@@ -111,24 +110,14 @@ async function getFirebaseUid(chatId) {
 async function handleSaveNote(chatId, text) {
   const firebaseUid = await getFirebaseUid(chatId);
   if (!firebaseUid) return;
-
   const title = text.length > 30 ? text.substring(0, 30) + '...' : text;
   const content = text;
-
   try {
     const url = `${fastApiBaseUrl}/notes/bot/`;
     await axios.post(
       url,
-      {
-        title: title,
-        content: content,
-        userId: firebaseUid
-      },
-      {
-        headers: {
-          'X-Internal-Secret': internalSecretKey
-        }
-      }
+      { title: title, content: content, userId: firebaseUid },
+      { headers: { 'X-Internal-Secret': internalSecretKey } }
     );
     bot.sendMessage(chatId, `✅ Заметка сохранена!`);
   } catch (error) {
@@ -169,6 +158,7 @@ app.get('/api/notes', checkAuth, async (req, res) => {
         res.status(500).json({ error: 'Внутренняя ошибка сервера' });
     }
 });
+
 app.post('/api/notes', checkAuth, async (req, res) => {
     try {
         const firebaseUid = req.user.uid;
@@ -187,6 +177,7 @@ app.post('/api/notes', checkAuth, async (req, res) => {
         res.status(500).json({ error: 'Внутренняя ошибка сервера' });
     }
 });
+
 app.delete('/api/notes/:id', checkAuth, async (req, res) => {
     try {
         const firebaseUid = req.user.uid;
@@ -216,10 +207,10 @@ app.post('/api/link-account', checkAuth, async (req, res) => {
 
     try {
       await axios.post(
-        `${fastApiBaseUrl}/users/bot/register`,
+        `${fastApiBaseUrl}/users/chat_id`,
         {
-          firebaseUid: firebaseUid,
-          chatId: String(chatId)
+          user_uid: firebaseUid,
+          chat_id: parseInt(chatId, 10)
         },
         {
           headers: { 'X-Internal-Secret': internalSecretKey }
@@ -230,14 +221,14 @@ app.post('/api/link-account', checkAuth, async (req, res) => {
       console.error(`Не удалось синхронизировать пользователя ${firebaseUid} с FastAPI:`, syncError.response ? syncError.response.data : syncError.message);
     }
 
-    bot.sendMessage(chatId, '🎉 Отлично! Ваш аккаунт успешно связан. Теперь вы можете открывать дневник через кнопку "Меню".');
+    bot.sendMessage(chatId, '🎉 Отлично! Ваш аккаунт успешно связан. Теперь используйте /start, чтобы открыть дневник.');
     res.status(200).json({ message: 'Аккаунт успешно связан!' });
-    
   } catch (error) {
     console.error("Ошибка при связывании аккаунта:", error);
     res.status(500).json({ error: 'Внутренняя ошибка сервера' });
   }
 });
+
 app.listen(port, () => {
   console.log(`Сервер запущен на порту ${port}`);
 });
