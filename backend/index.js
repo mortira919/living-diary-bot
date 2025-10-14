@@ -28,16 +28,17 @@ async function setupBotCommands() {
     { command: '/notes', description: 'Открыть дневник (через меню)' },
   ]);
 
-  if (miniAppUrl) {
-    await bot.setChatMenuButton({
-      menuButton: {
-        type: 'web_app',
-        text: 'Дневник',
-        web_app: { url: miniAppUrl }
-      }
-    });
-    console.log("Кнопка меню для Mini App успешно установлена.");
-  } else {
+ if (miniAppUrl) {
+  console.log(`Пытаюсь установить кнопку меню с URL: [${miniAppUrl}] ---`);
+  await bot.setChatMenuButton({
+    menuButton: {
+      type: 'web_app',
+      text: 'Дневник',
+      web_app: { url: miniAppUrl }
+    }
+  });
+  console.log("Кнопка меню для Mini App успешно установлена.");
+}else {
     console.warn("Внимание: MINI_APP_URL не установлена. Кнопка меню не будет настроена.");
   }
 }
