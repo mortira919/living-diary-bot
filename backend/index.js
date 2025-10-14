@@ -137,8 +137,7 @@ async function handleSaveNote(chatId, text) {
   }
 }
 
-// Функции handleGetNotes и handleDeleteNote больше не используются напрямую, 
-// так как вся логика теперь в Mini App, но мы их оставляем как примеры корректных запросов.
+  
 async function handleGetNotes(chatId) {
     const firebaseUid = await getFirebaseUid(chatId);
     if (!firebaseUid) return;
