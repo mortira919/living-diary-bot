@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { auth } from '../firebase';
 import { getNotes, createNote, deleteNote } from '../api/diaryService';
 import { useTheme } from '../context/ThemeContext';
+import './DiaryPage.css';
 
 function DiaryPage() {
   const [notes, setNotes] = useState([]);
@@ -34,18 +35,19 @@ function DiaryPage() {
     e.preventDefault();
     if (!newNoteText.trim()) return;
     try {
-      const response = await createNote(newNoteText);
-      // После создания заметки, запрашиваем обновленный список, чтобы все было синхронно
-      getNotes().then(response => setNotes(response.data));
+      await createNote(newNoteText);
+      // Запрашиваем обновленный список после создания
+      const response = await getNotes();
+      setNotes(response.data);
       setNewNoteText('');
     } catch (err) {
       setError("Ошибка создания заметки: " + err.message);
     }
-  };
+  }; // <--- ВОТ НУЖНАЯ СКОБКА
 
   const handleDeleteNote = async (noteId) => {
     if (!window.confirm("Вы уверены?")) return;
-    setError(null); // Сбрасываем предыдущую ошибку
+    setError(null);
     try {
       await deleteNote(noteId);
       setNotes(notes.filter(note => note.id !== noteId));
@@ -58,42 +60,41 @@ function DiaryPage() {
   if (!auth.currentUser) return <p>Пожалуйста, <a href="/login">войдите</a>, чтобы увидеть ваш дневник.</p>;
 
   return (
-    <div>
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+    <div className="diary-page-container">
+      <div className="diary-header">
         <h1>Ваш дневник</h1>
-        <div>
-          <button onClick={toggleTheme} style={{ marginRight: '10px' }}>
+        <div className="header-buttons">
+          <button onClick={toggleTheme}>
             {theme === 'light' ? '🌙' : '☀️'}
           </button>
           <button onClick={() => auth.signOut()}>Выйти</button>
         </div>
       </div>
 
-      <form onSubmit={handleCreateNote} style={{ margin: '20px 0' }}>
+      <form onSubmit={handleCreateNote} className="note-form">
         <textarea
           value={newNoteText}
           onChange={(e) => setNewNoteText(e.target.value)}
           placeholder="Что нового?"
-          rows="4"
-          style={{ width: '100%', padding: '10px', boxSizing: 'border-box' }}
+          className="note-textarea"
         />
         <button type="submit">Добавить заметку</button>
       </form>
 
       {error && <p style={{ color: 'red' }}>{error}</p>}
 
-      <div>
+      <div className="notes-list">
         {notes.length === 0 ? (
           <p>У вас пока нет заметок.</p>
         ) : (
           notes.map(note => (
-            <div key={note.id} style={{ border: '1px solid #ccc', padding: '10px', margin: '10px 0', textAlign: 'left' }}>
+            <div key={note.id} className="note-card">
               <p>{note.content}</p>
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                <small>
+              <div className="note-footer">
+                <small className="note-date">
                   {new Date(note.created_at).toLocaleString('ru-RU', { timeZone })}
                 </small>
-                <button onClick={() => handleDeleteNote(note.id)} style={{ color: 'red', background: 'none', border: 'none', cursor: 'pointer' }}>
+                <button onClick={() => handleDeleteNote(note.id)} className="delete-button">
                   Удалить
                 </button>
               </div>
@@ -103,6 +104,6 @@ function DiaryPage() {
       </div>
     </div>
   );
-}
+} // <--- А эта скобка закрывает `function DiaryPage()`
 
 export default DiaryPage;
