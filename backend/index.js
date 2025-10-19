@@ -27,6 +27,7 @@ bot.setMyCommands([
   { command: '/start', description: '🚀 Начать работу и открыть дневник' },
   { command: '/connect', description: '🔗 Привязать аккаунт' },
   { command: '/notes', description: '📖 Открыть дневник' },
+  { command: '/logout', description: '🗑️ Отвязать аккаунт' },
 ]);
 
 bot.on('message', async (msg) => {
@@ -84,6 +85,20 @@ bot.on('message', async (msg) => {
           sendOpenAppButton(chatId, "Для просмотра и управления заметками, пожалуйста, откройте дневник, нажав на кнопку ниже.");
         } else {
           bot.sendMessage(chatId, "Сначала нужно связать аккаунт. Пожалуйста, используйте команду /connect.");
+        }
+        break;
+
+      case '/logout':
+        if (user) {
+          try {
+            await prisma.user.delete({ where: { telegramChatId: String(chatId) } });
+            bot.sendMessage(chatId, "🗑️ Ваш аккаунт был успешно отвязан. Чтобы снова пользоваться ботом, используйте /connect.");
+          } catch (error) {
+            console.error("Ошибка при отвязке аккаунта:", error);
+            bot.sendMessage(chatId, "❌ Произошла ошибка при отвязке аккаунта. Попробуйте позже.");
+          }
+        } else {
+          bot.sendMessage(chatId, "Ваш аккаунт и так не был привязан.");
         }
         break;
         
@@ -145,6 +160,14 @@ const checkAuth = async (req, res, next) => {
   }
 };
 
+const checkInternalSecret = (req, res, next) => {
+  const secret = req.headers['x-internal-secret'];
+  if (!secret || secret !== internalSecretKey) {
+    return res.status(403).send('Forbidden: Invalid internal secret key');
+  }
+  next();
+};
+
 app.get('/api/notes', checkAuth, async (req, res) => {
     try {
         const firebaseUid = req.user.uid;
@@ -158,7 +181,6 @@ app.get('/api/notes', checkAuth, async (req, res) => {
         res.status(500).json({ error: 'Внутренняя ошибка сервера' });
     }
 });
-
 app.post('/api/notes', checkAuth, async (req, res) => {
     try {
         const firebaseUid = req.user.uid;
@@ -177,7 +199,6 @@ app.post('/api/notes', checkAuth, async (req, res) => {
         res.status(500).json({ error: 'Внутренняя ошибка сервера' });
     }
 });
-
 app.delete('/api/notes/:id', checkAuth, async (req, res) => {
     try {
         const firebaseUid = req.user.uid;
@@ -192,7 +213,6 @@ app.delete('/api/notes/:id', checkAuth, async (req, res) => {
         res.status(500).json({ error: 'Внутренняя ошибка сервера' });
     }
 });
-
 app.post('/api/link-account', checkAuth, async (req, res) => {
   try {
     const firebaseUid = req.user.uid;
@@ -226,6 +246,19 @@ app.post('/api/link-account', checkAuth, async (req, res) => {
   } catch (error) {
     console.error("Ошибка при связывании аккаунта:", error);
     res.status(500).json({ error: 'Внутренняя ошибка сервера' });
+  }
+});
+app.post('/api/send-reminder', checkInternalSecret, async (req, res) => {
+  try {
+    const { chatId, message } = req.body;
+    if (!chatId || !message) {
+      return res.status(400).json({ error: 'chatId and message are required' });
+    }
+    await bot.sendMessage(chatId, message);
+    res.status(200).json({ success: true, message: "Reminder sent." });
+  } catch (error) {
+    console.error("Ошибка при отправке напоминания:", error.message);
+    res.status(500).json({ success: false, error: error.message });
   }
 });
 
